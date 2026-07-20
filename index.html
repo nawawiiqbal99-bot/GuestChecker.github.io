@@ -50,8 +50,9 @@
         <hr class="border-amber-200/80 my-4">
 
         <div class="mb-6 text-left">
-            <label class="block text-sm font-medium text-slate-700 mb-2">Masukkan Nama Anda:</label>
+            <label for="inputNama" class="block text-sm font-medium text-slate-700 mb-2">Masukkan Nama Anda:</label>
             <input type="text" id="inputNama" placeholder="Contoh: Budi Santoso" 
+                   onkeypress="if(event.key === 'Enter') prosesCek()"
                    class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white/80">
             <button onclick="prosesCek()" id="btnCek"
                     class="w-full mt-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition-colors">
@@ -63,26 +64,23 @@
             <p class="text-xs uppercase tracking-wider text-slate-500 mb-1">Status Tamu:</p>
             <h3 id="resNama" class="text-xl font-bold text-slate-900 mb-1">-</h3>
             <span id="resStatus" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3">-</span>
-            <p id="resMessage" class="text-sm text-slate-600 border-t border-slate-100 pt-2">-</p>
+            <div id="resMessage" class="text-sm text-slate-600 border-t border-slate-100 pt-2">-</div>
         </div>
     </div>
 
     <script>
-        // 1. TEMPELKAN URL APPS SCRIPT DARI LANGKAH 1 DI SINI
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQ9rPeprhS9ENIJFL_An-P1hgTWOk-yIST9cQt6GJ5k4Di2aOxeU1dHIjCGwHIqYDd/exec";
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4MoEINBUz_WBtix0kmZ-eGEajDbF227pvAu1tQRVEtCj73sy7q0A5PU5CagAQV-q/exec";
 
-        // 2. DAFTAR FOTO BACKGROUND (Link Google Drive)
         const fotoBackground = [
             "https://lh3.googleusercontent.com/d/1q-kb-AhcOJwjmeH_-jszY-uL9hTba0zP",
             "https://lh3.googleusercontent.com/d/1SMEpH0GLfWeL3NTMtRTBPPqu2noahlDZ",
-"https://lh3.googleusercontent.com/d/1fdUHM_LxmNh_Nm9_H5cyu1Hz5_M4xe4u",
-"https://lh3.googleusercontent.com/d/1Lbhshf_koNJ9QigLkHPnIhIc_4fHdO0c",
-"https://lh3.googleusercontent.com/d/1WPz8AstOQJmTbD41_gfHdBhP5XTOk-X6",
-"https://lh3.googleusercontent.com/d/1zHVBGmhDKJABxsg_VR96bMwrj18OW3SV",
+            "https://lh3.googleusercontent.com/d/1fdUHM_LxmNh_Nm9_H5cyu1Hz5_M4xe4u",
+            "https://lh3.googleusercontent.com/d/1Lbhshf_koNJ9QigLkHPnIhIc_4fHdO0c",
+            "https://lh3.googleusercontent.com/d/1WPz8AstOQJmTbD41_gfHdBhP5XTOk-X6",
+            "https://lh3.googleusercontent.com/d/1zHVBGmhDKJABxsg_VR96bMwrj18OW3SV",
             "https://lh3.googleusercontent.com/d/1JD0ja3uVTQPo9A9zYZfWen2jq3EJpq7x"
         ];
 
-        // Init Slideshow
         function initSlideshow() {
             const container = document.getElementById('slideshowContainer');
             fotoBackground.forEach((url, index) => {
@@ -99,14 +97,14 @@
                     slides[currentIndex].classList.remove('active');
                     currentIndex = (currentIndex + 1) % slides.length;
                     slides[currentIndex].classList.add('active');
-                }, 5000); // Berganti tiap 5 detik
+                }, 5000);
             }
         }
         document.addEventListener("DOMContentLoaded", initSlideshow);
 
-        // Fungsi Cek Tamu via API Fetch
         async function prosesCek() {
-            const nama = document.getElementById('inputNama').value.trim();
+            const namaInput = document.getElementById('inputNama');
+            const nama = namaInput.value.trim();
             const btn = document.getElementById('btnCek');
             const resultArea = document.getElementById('resultArea');
             const resNama = document.getElementById('resNama');
@@ -134,18 +132,36 @@
                 btn.innerText = "Cek Status Undangan";
 
                 if (res.found) {
-                    resNama.innerText = res.nama;
-                    resStatus.innerText = res.status;
-                    resStatus.classList.remove('hidden');
+                    if (res.total > 1) {
+                        // JIKA DITEMUKAN LEBIH DARI 1 NAMA GANDA
+                        resNama.innerText = "Ditemukan Beberapa Nama";
+                        resStatus.classList.add('hidden');
+                        
+                        let htmlOpsi = `<p class="mb-2 text-xs text-slate-500">Pilih nama & asal/keterangan yang sesuai dengan Anda:</p><div class="space-y-2">`;
+                        
+                        res.data.forEach((tamu) => {
+                            const isVip = tamu.status === 'VIP';
+                            const badgeBg = isVip ? 'bg-amber-600' : 'bg-blue-600';
+                            const cardBg = isVip ? 'bg-amber-50 border-amber-300' : 'bg-blue-50 border-blue-300';
+                            
+                            htmlOpsi += `
+                                <div class="p-3 border rounded-xl ${cardBg} cursor-pointer hover:shadow-md transition-all" onclick="tampilkanDetail('${tamu.nama}', '${tamu.status}', '${tamu.ket}')">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-bold text-slate-900">${tamu.nama}</span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${badgeBg}">${tamu.status}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-600 mt-1">📌 Ket/Asal: ${tamu.ket}</p>
+                                </div>
+                            `;
+                        });
+                        
+                        htmlOpsi += `</div>`;
+                        resMessage.innerHTML = htmlOpsi;
 
-                    if (res.status === 'VIP') {
-                        resultArea.className = "p-4 rounded-xl text-left border bg-amber-50 border-amber-300 block";
-                        resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3 bg-amber-600 text-white";
-                        resMessage.innerText = "Selamat Datang! Anda berada di area VIP. Silakan tunjukkan layar ini kepada petugas penerima tamu.";
                     } else {
-                        resultArea.className = "p-4 rounded-xl text-left border bg-blue-50 border-blue-300 block";
-                        resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3 bg-blue-600 text-white";
-                        resMessage.innerText = "Selamat Datang! Anda terdaftar sebagai tamu REGULER. Terima kasih atas kehadiran Anda.";
+                        // JIKA HANYA ADA 1 NAMA
+                        const tamu = res.data[0];
+                        tampilkanDetail(tamu.nama, tamu.status, tamu.ket);
                     }
                 } else {
                     resultArea.className = "p-4 rounded-xl text-left border bg-red-50 border-red-300 block";
@@ -161,6 +177,29 @@
                 resNama.innerText = "Terjadi Kesalahan";
                 resStatus.classList.add('hidden');
                 resMessage.innerText = "Gagal terhubung ke database. Pastikan koneksi internet stabil.";
+            }
+        }
+
+        function tampilkanDetail(nama, status, ket) {
+            const resultArea = document.getElementById('resultArea');
+            const resNama = document.getElementById('resNama');
+            const resStatus = document.getElementById('resStatus');
+            const resMessage = document.getElementById('resMessage');
+
+            resNama.innerText = nama;
+            resStatus.innerText = status;
+            resStatus.classList.remove('hidden');
+
+            const infoKet = (ket && ket !== '-') ? ` (${ket})` : '';
+
+            if (status === 'VIP') {
+                resultArea.className = "p-4 rounded-xl text-left border bg-amber-50 border-amber-300 block";
+                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3 bg-amber-600 text-white";
+                resMessage.innerText = `Selamat Datang! Anda berada di area VIP${infoKet}. Silakan tunjukkan layar ini kepada petugas penerima tamu.`;
+            } else {
+                resultArea.className = "p-4 rounded-xl text-left border bg-blue-50 border-blue-300 block";
+                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3 bg-blue-600 text-white";
+                resMessage.innerText = `Selamat Datang! Anda terdaftar sebagai tamu REGULER${infoKet}. Terima kasih atas kehadiran Anda.`;
             }
         }
     </script>

@@ -63,13 +63,27 @@
         <div id="resultArea" class="hidden p-4 rounded-xl text-left border transition-all">
             <p class="text-xs uppercase tracking-wider text-slate-500 mb-1">Status Tamu:</p>
             <h3 id="resNama" class="text-xl font-bold text-slate-900 mb-1">-</h3>
-            <span id="resStatus" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3">-</span>
-            <div id="resMessage" class="text-sm text-slate-600 border-t border-slate-100 pt-2">-</div>
+            <span id="resStatus" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-2">-</span>
+            
+            <!-- Tanda Peringatan Jika Sudah Check-in -->
+            <div id="badgeCheckin" class="hidden mb-3 p-2 bg-emerald-100 border border-emerald-400 text-emerald-800 text-xs rounded-lg font-medium flex items-center gap-1.5">
+                <span>✅</span> <span id="textCheckin">Tamu ini SUDAH Check-in</span>
+            </div>
+
+            <div id="resMessage" class="text-sm text-slate-600 border-t border-slate-100 pt-2 mb-4">-</div>
+
+            <!-- Tombol Checklist Kehadiran -->
+            <div id="actionArea" class="hidden border-t border-slate-200 pt-3">
+                <button id="btnCheckin" onclick="prosesCheckin()" 
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <span>☑️</span> Tandai Sudah Hadir (Check-in)
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4MoEINBUz_WBtix0kmZ-eGEajDbF227pvAu1tQRVEtCj73sy7q0A5PU5CagAQV-q/exec";
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxR5s4GWWaW_qnfuryfaCcbBNr1N38JaMl9VBRv5k1HjS3NkIDAzGLHfiY00hDNBoMG/exec";
 
         const fotoBackground = [
             "https://lh3.googleusercontent.com/d/1q-kb-AhcOJwjmeH_-jszY-uL9hTba0zP",
@@ -80,6 +94,8 @@
             "https://lh3.googleusercontent.com/d/1zHVBGmhDKJABxsg_VR96bMwrj18OW3SV",
             "https://lh3.googleusercontent.com/d/1JD0ja3uVTQPo9A9zYZfWen2jq3EJpq7x"
         ];
+
+        let selectedRow = null;
 
         function initSlideshow() {
             const container = document.getElementById('slideshowContainer');
@@ -110,6 +126,8 @@
             const resNama = document.getElementById('resNama');
             const resStatus = document.getElementById('resStatus');
             const resMessage = document.getElementById('resMessage');
+            const badgeCheckin = document.getElementById('badgeCheckin');
+            const actionArea = document.getElementById('actionArea');
 
             if (!nama) {
                 alert('Silakan masukkan nama terlebih dahulu.');
@@ -122,6 +140,8 @@
             resultArea.className = "p-4 rounded-xl text-left border bg-slate-50 border-slate-200 block";
             resNama.innerText = "Mencari data...";
             resStatus.classList.add('hidden');
+            badgeCheckin.classList.add('hidden');
+            actionArea.classList.add('hidden');
             resMessage.innerText = "Mohon tunggu sebentar...";
 
             try {
@@ -133,22 +153,26 @@
 
                 if (res.found) {
                     if (res.total > 1) {
-                        // JIKA DITEMUKAN LEBIH DARI 1 NAMA GANDA
                         resNama.innerText = "Ditemukan Beberapa Nama";
                         resStatus.classList.add('hidden');
                         
-                        let htmlOpsi = `<p class="mb-2 text-xs text-slate-500">Pilih nama & asal/keterangan yang sesuai dengan Anda:</p><div class="space-y-2">`;
+                        let htmlOpsi = `<p class="mb-2 text-xs text-slate-500">Pilih nama yang sesuai:</p><div class="space-y-2">`;
                         
                         res.data.forEach((tamu) => {
                             const isVip = tamu.status === 'VIP';
                             const badgeBg = isVip ? 'bg-amber-600' : 'bg-blue-600';
                             const cardBg = isVip ? 'bg-amber-50 border-amber-300' : 'bg-blue-50 border-blue-300';
+                            const isAlready = tamu.kehadiran.startsWith('SUDAH');
                             
                             htmlOpsi += `
-                                <div class="p-3 border rounded-xl ${cardBg} cursor-pointer hover:shadow-md transition-all" onclick="tampilkanDetail('${tamu.nama}', '${tamu.status}', '${tamu.ket}')">
+                                <div class="p-3 border rounded-xl ${cardBg} cursor-pointer hover:shadow-md transition-all" 
+                                     onclick="tampilkanDetail('${tamu.nama}', '${tamu.status}', '${tamu.ket}', '${tamu.kehadiran}', ${tamu.row})">
                                     <div class="flex justify-between items-center">
                                         <span class="font-bold text-slate-900">${tamu.nama}</span>
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${badgeBg}">${tamu.status}</span>
+                                        <div class="flex items-center gap-1">
+                                            ${isAlready ? '<span class="text-xs">✅</span>' : ''}
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${badgeBg}">${tamu.status}</span>
+                                        </div>
                                     </div>
                                     <p class="text-xs text-slate-600 mt-1">📌 Ket/Asal: ${tamu.ket}</p>
                                 </div>
@@ -159,14 +183,15 @@
                         resMessage.innerHTML = htmlOpsi;
 
                     } else {
-                        // JIKA HANYA ADA 1 NAMA
                         const tamu = res.data[0];
-                        tampilkanDetail(tamu.nama, tamu.status, tamu.ket);
+                        tampilkanDetail(tamu.nama, tamu.status, tamu.ket, tamu.kehadiran, tamu.row);
                     }
                 } else {
                     resultArea.className = "p-4 rounded-xl text-left border bg-red-50 border-red-300 block";
                     resNama.innerText = "Nama Tidak Ditemukan";
                     resStatus.classList.add('hidden');
+                    badgeCheckin.classList.add('hidden');
+                    actionArea.classList.add('hidden');
                     resMessage.innerText = "Maaf, nama Anda tidak terdaftar di sistem. Mohon periksa kembali ejaan nama Anda.";
                 }
             } catch (err) {
@@ -180,11 +205,16 @@
             }
         }
 
-        function tampilkanDetail(nama, status, ket) {
+        function tampilkanDetail(nama, status, ket, kehadiran, row) {
+            selectedRow = row;
             const resultArea = document.getElementById('resultArea');
             const resNama = document.getElementById('resNama');
             const resStatus = document.getElementById('resStatus');
             const resMessage = document.getElementById('resMessage');
+            const badgeCheckin = document.getElementById('badgeCheckin');
+            const textCheckin = document.getElementById('textCheckin');
+            const actionArea = document.getElementById('actionArea');
+            const btnCheckin = document.getElementById('btnCheckin');
 
             resNama.innerText = nama;
             resStatus.innerText = status;
@@ -192,14 +222,59 @@
 
             const infoKet = (ket && ket !== '-') ? ` (${ket})` : '';
 
+            // Cek apakah sudah check-in
+            if (kehadiran && kehadiran.startsWith('SUDAH')) {
+                badgeCheckin.classList.remove('hidden');
+                textCheckin.innerText = `TAMU INI SUDAH CHECK-IN (${kehadiran.replace('SUDAH HADIR ', '')})`;
+                btnCheckin.disabled = true;
+                btnCheckin.className = "w-full bg-slate-300 text-slate-500 font-medium py-2.5 px-4 rounded-xl text-sm cursor-not-allowed flex items-center justify-center gap-2";
+                btnCheckin.innerHTML = "<span>✅</span> Sudah Dichecklist";
+            } else {
+                badgeCheckin.classList.add('hidden');
+                btnCheckin.disabled = false;
+                btnCheckin.className = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm";
+                btnCheckin.innerHTML = "<span>☑️</span> Tandai Sudah Hadir (Check-in)";
+            }
+
             if (status === 'VIP') {
                 resultArea.className = "p-4 rounded-xl text-left border bg-amber-50 border-amber-300 block";
-                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3 bg-amber-600 text-white";
+                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-2 bg-amber-600 text-white";
                 resMessage.innerText = `Selamat Datang! Anda berada di area VIP${infoKet}. Silakan tunjukkan layar ini kepada petugas penerima tamu.`;
             } else {
                 resultArea.className = "p-4 rounded-xl text-left border bg-blue-50 border-blue-300 block";
-                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-3 bg-blue-600 text-white";
+                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-2 bg-blue-600 text-white";
                 resMessage.innerText = `Selamat Datang! Anda terdaftar sebagai tamu REGULER${infoKet}. Terima kasih atas kehadiran Anda.`;
+            }
+
+            actionArea.classList.remove('hidden');
+        }
+
+        async function prosesCheckin() {
+            if (!selectedRow) return;
+
+            const btnCheckin = document.getElementById('btnCheckin');
+            const badgeCheckin = document.getElementById('badgeCheckin');
+            const textCheckin = document.getElementById('textCheckin');
+
+            btnCheckin.disabled = true;
+            btnCheckin.innerText = "Menyimpan Kehadiran...";
+
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=checkin&row=${selectedRow}`);
+                const res = await response.json();
+
+                if (res.success) {
+                    badgeCheckin.classList.remove('hidden');
+                    textCheckin.innerText = `TAMU INI SUDAH CHECK-IN (${res.waktu})`;
+                    btnCheckin.className = "w-full bg-slate-300 text-slate-500 font-medium py-2.5 px-4 rounded-xl text-sm cursor-not-allowed flex items-center justify-center gap-2";
+                    btnCheckin.innerHTML = "<span>✅</span> Sudah Dichecklist";
+                    alert("Berhasil! Status kehadiran tamu telah dicatat di Google Sheet.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Gagal mencatat kehadiran. Silakan coba lagi.");
+                btnCheckin.disabled = false;
+                btnCheckin.innerHTML = "<span>☑️</span> Tandai Sudah Hadir (Check-in)";
             }
         }
     </script>

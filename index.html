@@ -2,61 +2,45 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Undangan - Nawawi & Zikratul</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Container untuk background slideshow */
         .bg-slideshow {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             z-index: -1;
             overflow: hidden;
         }
-
-        /* Elemen gambar individual */
         .bg-slide {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background-size: cover;
             background-position: center;
             opacity: 0;
             transition: opacity 1.5s ease-in-out, transform 8s ease-in-out;
             transform: scale(1);
         }
-
-        /* Kelas untuk foto yang sedang aktif */
         .bg-slide.active {
             opacity: 1;
-            transform: scale(1.05); /* Efek zoom perlahan agar terkesan hidup */
+            transform: scale(1.05);
         }
-
-        /* Overlay gelap agar teks di atasnya tetap mudah dibaca */
         .bg-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.65);
             z-index: -1;
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 font-sans text-slate-800 relative">
 
-    <!-- LAYER BACKGROUND SLIDESHOW -->
-    <div class="bg-slideshow" id="slideshowContainer">
-        <!-- Foto-foto akan dimuat otomatis via JavaScript di bawah -->
-    </div>
-    <!-- Layer Kegelapan untuk Menjaga Keterbacaan Teks -->
+    <div class="bg-slideshow" id="slideshowContainer"></div>
     <div class="bg-overlay"></div>
 
-    <!-- CARD UTAMA -->
     <div class="bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-md border border-amber-200/50 text-center relative z-10">
         <p class="text-amber-600 font-semibold tracking-widest text-xs uppercase mb-2">Pengecekan Undangan Pernikahan</p>
         <h1 class="text-3xl font-serif font-bold text-slate-900 mb-1">Nawawi Iqbal</h1>
@@ -84,24 +68,19 @@
     </div>
 
     <script>
-        // =========================================================
-        // TEMPAT SELIPKAN LINK FOTO GOOGLE DRIVE ANDA DI SINI
-        // Format link Direct Google Drive: https://lh3.googleusercontent.com/d/ID_FOTO_ANDA
-        // =========================================================
+        // 1. TEMPELKAN URL APPS SCRIPT DARI LANGKAH 1 DI SINI
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQ9rPeprhS9ENIJFL_An-P1hgTWOk-yIST9cQt6GJ5k4Di2aOxeU1dHIjCGwHIqYDd/exec";
+
+        // 2. DAFTAR FOTO BACKGROUND (Link Google Drive)
         const fotoBackground = [
-            "https://lh3.googleusercontent.com/d/1q-kb-AhcOJwjmeH_-jszY-uL9hTba0zP",
-            "https://lh3.googleusercontent.com/d/1SMEpH0GLfWeL3NTMtRTBPPqu2noahlDZ",
-            "https://lh3.googleusercontent.com/d/1JD0ja3uVTQPo9A9zYZfWen2jq3EJpq7x"
-            // Tambahkan foto lain di sini dipisahkan koma
+            "https://lh3.googleusercontent.com/d/ID_FOTO_DRIVE_1",
+            "https://lh3.googleusercontent.com/d/ID_FOTO_DRIVE_2",
+            "https://lh3.googleusercontent.com/d/ID_FOTO_DRIVE_3"
         ];
 
-        // Durasi ganti foto (dalam milidetik) -> 5000 = 5 detik
-        const durasiSlide = 5000; 
-
-        // Fungsi Memuat Slide Background
+        // Init Slideshow
         function initSlideshow() {
             const container = document.getElementById('slideshowContainer');
-            
             fotoBackground.forEach((url, index) => {
                 const slide = document.createElement('div');
                 slide.className = `bg-slide ${index === 0 ? 'active' : ''}`;
@@ -111,27 +90,24 @@
 
             let currentIndex = 0;
             const slides = document.querySelectorAll('.bg-slide');
-
             if (slides.length > 1) {
                 setInterval(() => {
                     slides[currentIndex].classList.remove('active');
                     currentIndex = (currentIndex + 1) % slides.length;
                     slides[currentIndex].classList.add('active');
-                }, durasiSlide);
+                }, 5000); // Berganti tiap 5 detik
             }
         }
-
-        // Jalankan Slideshow saat halaman selesai dimuat
         document.addEventListener("DOMContentLoaded", initSlideshow);
 
-        // Fungsi Cek Tamu dari Apps Script
-        function prosesCek() {
-            var nama = document.getElementById('inputNama').value.trim();
-            var btn = document.getElementById('btnCek');
-            var resultArea = document.getElementById('resultArea');
-            var resNama = document.getElementById('resNama');
-            var resStatus = document.getElementById('resStatus');
-            var resMessage = document.getElementById('resMessage');
+        // Fungsi Cek Tamu via API Fetch
+        async function prosesCek() {
+            const nama = document.getElementById('inputNama').value.trim();
+            const btn = document.getElementById('btnCek');
+            const resultArea = document.getElementById('resultArea');
+            const resNama = document.getElementById('resNama');
+            const resStatus = document.getElementById('resStatus');
+            const resMessage = document.getElementById('resMessage');
 
             if (!nama) {
                 alert('Silakan masukkan nama terlebih dahulu.');
@@ -146,7 +122,10 @@
             resStatus.classList.add('hidden');
             resMessage.innerText = "Mohon tunggu sebentar...";
 
-            google.script.run.withSuccessHandler(function(res) {
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?nama=${encodeURIComponent(nama)}`);
+                const res = await response.json();
+
                 btn.disabled = false;
                 btn.innerText = "Cek Status Undangan";
 
@@ -170,7 +149,15 @@
                     resStatus.classList.add('hidden');
                     resMessage.innerText = "Maaf, nama Anda tidak terdaftar di sistem. Mohon periksa kembali ejaan nama Anda.";
                 }
-            }).cekTamu(nama);
+            } catch (err) {
+                console.error(err);
+                btn.disabled = false;
+                btn.innerText = "Cek Status Undangan";
+                resultArea.className = "p-4 rounded-xl text-left border bg-red-50 border-red-300 block";
+                resNama.innerText = "Terjadi Kesalahan";
+                resStatus.classList.add('hidden');
+                resMessage.innerText = "Gagal terhubung ke database. Pastikan koneksi internet stabil.";
+            }
         }
     </script>
 </body>

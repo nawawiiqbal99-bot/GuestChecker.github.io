@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cek Undangan - Nawawi & Zikratul</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Library HTML5 QR Code Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         .bg-slideshow {
             position: fixed;
@@ -31,8 +33,16 @@
             position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.65);
+            background: rgba(15, 23, 42, 0.7); /* Transparansi Navy Gelap */
             z-index: -1;
+        }
+        /* Custom Styling Reader QR */
+        #qr-reader {
+            border: none !important;
+        }
+        #qr-reader video {
+            object-fit: cover !important;
+            border-radius: 0.75rem;
         }
     </style>
 </head>
@@ -41,21 +51,29 @@
     <div class="bg-slideshow" id="slideshowContainer"></div>
     <div class="bg-overlay"></div>
 
-    <div class="bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-md border border-amber-200/50 text-center relative z-10">
-        <p class="text-amber-600 font-semibold tracking-widest text-xs uppercase mb-2">Pengecekan Undangan Pernikahan</p>
+    <div class="bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-md border border-sky-200/50 text-center relative z-10">
+        <p class="text-sky-600 font-semibold tracking-widest text-xs uppercase mb-2">Pengecekan Undangan Pernikahan</p>
         <h1 class="text-3xl font-serif font-bold text-slate-900 mb-1">Nawawi Iqbal</h1>
-        <p class="text-amber-700 italic font-medium my-1">&</p>
+        <p class="text-sky-700 italic font-medium my-1">&</p>
         <h1 class="text-3xl font-serif font-bold text-slate-900 mb-6">Zikratul Aini</h1>
         
-        <hr class="border-amber-200/80 my-4">
+        <hr class="border-sky-200/80 my-4">
 
         <div class="mb-6 text-left">
-            <label for="inputNama" class="block text-sm font-medium text-slate-700 mb-2">Masukkan Nama Anda:</label>
-            <input type="text" id="inputNama" placeholder="Contoh: Budi Santoso" 
-                   onkeypress="if(event.key === 'Enter') prosesCek()"
-                   class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white/80">
+            <label for="inputNama" class="block text-sm font-medium text-slate-700 mb-2">Masukkan Nama / Scan QR:</label>
+            <div class="flex gap-2 mb-3">
+                <input type="text" id="inputNama" placeholder="Contoh: Budi Santoso" 
+                       onkeypress="if(event.key === 'Enter') prosesCek()"
+                       class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white/80">
+                <!-- Tombol Kamera -->
+                <button onclick="bukaKamera()" type="button" title="Scan QR Code"
+                        class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 rounded-xl shadow-md transition-colors flex items-center justify-center gap-1 shrink-0">
+                    📷 <span class="hidden sm:inline text-xs">Scan</span>
+                </button>
+            </div>
+            
             <button onclick="prosesCek()" id="btnCek"
-                    class="w-full mt-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition-colors">
+                    class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition-colors">
                 Cek Status Undangan
             </button>
         </div>
@@ -82,6 +100,22 @@
         </div>
     </div>
 
+    <!-- Modal Popup Kamera Scanner -->
+    <div id="modalKamera" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl relative border border-sky-100">
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Scan QR Code Undangan</h3>
+            <p class="text-xs text-slate-500 mb-4">Arahkan kamera ke QR Code yang ada pada undangan digital.</p>
+            
+            <!-- Container Kamera -->
+            <div id="qr-reader" class="w-full overflow-hidden rounded-xl bg-slate-100 mb-4 min-h-[250px]"></div>
+
+            <button onclick="tutupKamera()" 
+                    class="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors">
+                Batal / Tutup Kamera
+            </button>
+        </div>
+    </div>
+
     <script>
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxR5s4GWWaW_qnfuryfaCcbBNr1N38JaMl9VBRv5k1HjS3NkIDAzGLHfiY00hDNBoMG/exec";
 
@@ -96,6 +130,7 @@
         ];
 
         let selectedRow = null;
+        let html5QrCode = null;
 
         function initSlideshow() {
             const container = document.getElementById('slideshowContainer');
@@ -118,6 +153,42 @@
         }
         document.addEventListener("DOMContentLoaded", initSlideshow);
 
+        // --- Fitur Kamera & QR Scanner ---
+        function bukaKamera() {
+            document.getElementById('modalKamera').classList.remove('hidden');
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("qr-reader");
+            }
+            
+            const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+            
+            // Memprioritaskan kamera belakang (environment)
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+            .catch(err => {
+                console.error("Gagal membuka kamera: ", err);
+                alert("Gagal mengakses kamera. Pastikan Anda telah memberikan izin akses kamera.");
+                tutupKamera();
+            });
+        }
+
+        function tutupKamera() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('modalKamera').classList.add('hidden');
+                }).catch(err => console.error(err));
+            } else {
+                document.getElementById('modalKamera').classList.add('hidden');
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            // Suara / feedback saat berhasil scan
+            tutupKamera();
+            document.getElementById('inputNama').value = decodedText;
+            prosesCek(); // Otomatis cek data setelah scan berhasil
+        }
+
+        // --- Fitur Cek Status Undangan ---
         async function prosesCek() {
             const namaInput = document.getElementById('inputNama');
             const nama = namaInput.value.trim();
@@ -130,7 +201,7 @@
             const actionArea = document.getElementById('actionArea');
 
             if (!nama) {
-                alert('Silakan masukkan nama terlebih dahulu.');
+                alert('Silakan masukkan nama atau scan QR terlebih dahulu.');
                 return;
             }
 
@@ -160,8 +231,8 @@
                         
                         res.data.forEach((tamu) => {
                             const isVip = tamu.status === 'VIP';
-                            const badgeBg = isVip ? 'bg-amber-600' : 'bg-blue-600';
-                            const cardBg = isVip ? 'bg-amber-50 border-amber-300' : 'bg-blue-50 border-blue-300';
+                            const badgeBg = isVip ? 'bg-slate-900' : 'bg-sky-600';
+                            const cardBg = isVip ? 'bg-slate-100 border-slate-300' : 'bg-sky-50 border-sky-300';
                             const isAlready = tamu.kehadiran.startsWith('SUDAH');
                             
                             htmlOpsi += `
@@ -192,7 +263,7 @@
                     resStatus.classList.add('hidden');
                     badgeCheckin.classList.add('hidden');
                     actionArea.classList.add('hidden');
-                    resMessage.innerText = "Maaf, nama Anda tidak terdaftar di sistem. Mohon periksa kembali ejaan nama Anda.";
+                    resMessage.innerText = "Maaf, nama/QR Code Anda tidak terdaftar di sistem. Mohon periksa kembali.";
                 }
             } catch (err) {
                 console.error(err);
@@ -237,12 +308,12 @@
             }
 
             if (status === 'VIP') {
-                resultArea.className = "p-4 rounded-xl text-left border bg-amber-50 border-amber-300 block";
-                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-2 bg-amber-600 text-white";
+                resultArea.className = "p-4 rounded-xl text-left border bg-slate-100 border-slate-300 block";
+                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-2 bg-slate-900 text-white";
                 resMessage.innerText = `Selamat Datang! Anda berada di area VIP${infoKet}. Silakan tunjukkan layar ini kepada petugas penerima tamu.`;
             } else {
-                resultArea.className = "p-4 rounded-xl text-left border bg-blue-50 border-blue-300 block";
-                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-2 bg-blue-600 text-white";
+                resultArea.className = "p-4 rounded-xl text-left border bg-sky-50 border-sky-300 block";
+                resStatus.className = "inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-2 bg-sky-600 text-white";
                 resMessage.innerText = `Selamat Datang! Anda terdaftar sebagai tamu REGULER${infoKet}. Terima kasih atas kehadiran Anda.`;
             }
 

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<script src="https://unpkg.com/html5-qrcode"></script>    
-<meta charset="UTF-8">
+    <script src="https://unpkg.com/html5-qrcode"></script>    
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cek Undangan - Nawawi & Zikratul</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -50,10 +50,10 @@
         
         <hr class="border-amber-200/80 my-4">
 
-<!-- Area Kamera Scanner -->
-<div class="mb-4">
-    <div id="reader" class="overflow-hidden rounded-xl border border-amber-300"></div>
-</div>
+        <!-- Area Kamera Scanner -->
+        <div class="mb-4">
+            <div id="reader" class="overflow-hidden rounded-xl border border-amber-300"></div>
+        </div>
 
         <div class="mb-6 text-left">
             <label for="inputNama" class="block text-sm font-medium text-slate-700 mb-2">Masukkan Nama Anda:</label>
@@ -89,6 +89,7 @@
     </div>
 
     <script>
+        // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxR5s4GWWaW_qnfuryfaCcbBNr1N38JaMl9VBRv5k1HjS3NkIDAzGLHfiY00hDNBoMG/exec";
 
         const fotoBackground = [
@@ -120,7 +121,6 @@
                 }, 5000);
             }
         }
-        document.addEventListener("DOMContentLoaded", initSlideshow);
 
         async function prosesCek() {
             const namaInput = document.getElementById('inputNama');
@@ -166,11 +166,11 @@
                             const isVip = tamu.status === 'VIP';
                             const badgeBg = isVip ? 'bg-amber-600' : 'bg-blue-600';
                             const cardBg = isVip ? 'bg-amber-50 border-amber-300' : 'bg-blue-50 border-blue-300';
-                            const isAlready = tamu.kehadiran.startsWith('SUDAH');
+                            const isAlready = tamu.kehadiran && tamu.kehadiran.startsWith('SUDAH');
                             
                             htmlOpsi += `
                                 <div class="p-3 border rounded-xl ${cardBg} cursor-pointer hover:shadow-md transition-all" 
-                                     onclick="tampilkanDetail('${tamu.nama}', '${tamu.status}', '${tamu.ket}', '${tamu.kehadiran}', ${tamu.row})">
+                                     onclick="tampilkanDetail('${tamu.nama.replace(/'/g, "\\'")}', '${tamu.status}', '${tamu.ket}', '${tamu.kehadiran}', ${tamu.row})">
                                     <div class="flex justify-between items-center">
                                         <span class="font-bold text-slate-900">${tamu.nama}</span>
                                         <div class="flex items-center gap-1">
@@ -281,52 +281,48 @@
                 btnCheckin.innerHTML = "<span>☑️</span> Tandai Sudah Hadir (Check-in)";
             }
         }
-document.addEventListener("DOMContentLoaded", function () {
-    // 1. Jalankan slideshow latar belakang
-    initSlideshow();
 
-    // 2. Cek apakah ada parameter nama di URL (Contoh: ?nama=Budi)
-    const urlParams = new URLSearchParams(window.location.search);
-    const namaParam = urlParams.get('nama');
-    
-    if (namaParam) {
-        document.getElementById('inputNama').value = namaParam;
-        prosesCek(); // Otomatis cari ke Spreadsheet jika dibuka dari scan QR
-    }
+        document.addEventListener("DOMContentLoaded", function () {
+            initSlideshow();
 
-    // 3. Inisialisasi Kamera Pemindai QR Code
-    const html5QrCode = new Html5Qrcode("reader");
-    const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-        // Hentikan scan sejenak setelah QR berhasil dibaca
-        html5QrCode.stop();
-
-        // Jika QR berisi URL, ekstrak parameter 'nama'
-        try {
-            const url = new URL(decodedText);
-            const nama = url.searchParams.get("nama");
-            if (nama) {
-                document.getElementById('inputNama').value = nama;
-            } else {
-                document.getElementById('inputNama').value = decodedText;
+            // Membaca parameter ?to= atau ?nama= dari URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const namaParam = urlParams.get('to') || urlParams.get('nama');
+            
+            if (namaParam) {
+                // Konversi format nama url (misal: Budi+Santoso -> Budi Santoso)
+                const decodedName = decodeURIComponent(namaParam.replace(/\+/g, ' '));
+                document.getElementById('inputNama').value = decodedName;
+                prosesCek();
             }
-        } catch(e) {
-            // Jika QR hanya teks nama biasa
-            document.getElementById('inputNama').value = decodedText;
-        }
 
-        // Otomatis jalankan pengecekan ke Google Sheets
-        prosesCek();
-    };
+            // Inisialisasi Kamera Pemindai QR Code
+            const html5QrCode = new Html5Qrcode("reader");
+            const qrCodeSuccessCallback = (decodedText) => {
+                html5QrCode.stop();
 
-    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+                try {
+                    const url = new URL(decodedText);
+                    const nama = url.searchParams.get("to") || url.searchParams.get("nama");
+                    if (nama) {
+                        document.getElementById('inputNama').value = decodeURIComponent(nama.replace(/\+/g, ' '));
+                    } else {
+                        document.getElementById('inputNama').value = decodedText;
+                    }
+                } catch(e) {
+                    document.getElementById('inputNama').value = decodedText;
+                }
 
-    // Buka kamera belakang perangkat
-    html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
-        .catch(err => {
-            console.log("Kamera tidak aktif / izin ditolak:", err);
+                prosesCek();
+            };
+
+            const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+            html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+                .catch(err => {
+                    console.log("Kamera tidak aktif / izin ditolak:", err);
+                });
         });
-});
-
     </script>
 </body>
 </html>
